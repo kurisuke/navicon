@@ -19,6 +19,7 @@ pub enum SubsonicData {
     Artists(Artists),
     Artist(Artist),
     Album(Album),
+    Error(Error),
 }
 
 #[derive(Deserialize)]
@@ -99,4 +100,11 @@ pub struct Child {
     pub genre: Option<String>,
     pub content_type: Option<String>,
     pub duration: Option<usize>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Error {
+    pub code: usize,
+    pub message: Option<String>,
 }

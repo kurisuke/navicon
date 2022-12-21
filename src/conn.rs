@@ -1,4 +1,4 @@
-use crate::subsonic::SubsonicResponse;
+use crate::subsonic::{self, SubsonicData, SubsonicResponse};
 
 use color_eyre::Result;
 use md5::Digest;
@@ -89,10 +89,62 @@ impl ApiRequest {
         }
     }
 
-    fn call<'a, T: serde::Deserialize<'a>>(self) -> Result<T> {
+    fn call(self) -> Result<SubsonicResponse> {
         let resp = self.request.call()?;
         let body = resp.into_string()?;
-        let parsed_resp = serde_xml_rs::from_str(&body)?;
-        Ok(parsed_resp)
+        let parsed_resp: SubsonicResponse = serde_xml_rs::from_str(&body)?;
+        if let Some(SubsonicData::Error(err)) = &parsed_resp.data {
+            Err(ConnectionError::from(err).into())
+        } else {
+            Ok(parsed_resp)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ConnectionError {
+    pub code: ConnectionErrorType,
+    pub msg: Option<String>,
+}
+
+impl std::error::Error for ConnectionError {}
+
+impl std::fmt::Display for ConnectionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(msg) = &self.msg {
+            write!(f, "{:?} : {}", self.code, msg)
+        } else {
+            write!(f, "{:?}", self.code)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ConnectionErrorType {
+    Generic,
+    MissingParameter,
+    IncompatibleClient,
+    IncompatibleServer,
+    WrongCredentials,
+    NotAuthorized,
+    NotFound,
+    Other(usize),
+}
+
+impl ConnectionError {
+    fn from(value: &subsonic::Error) -> Self {
+        ConnectionError {
+            code: match value.code {
+                0 => ConnectionErrorType::Generic,
+                10 => ConnectionErrorType::MissingParameter,
+                20 => ConnectionErrorType::IncompatibleClient,
+                30 => ConnectionErrorType::IncompatibleServer,
+                40 => ConnectionErrorType::WrongCredentials,
+                50 => ConnectionErrorType::NotAuthorized,
+                70 => ConnectionErrorType::NotFound,
+                _ => ConnectionErrorType::Other(value.code),
+            },
+            msg: value.message.clone(),
+        }
     }
 }

@@ -9,6 +9,7 @@ use config::Config;
 use crate::library::{Item, Library};
 
 fn main() -> Result<()> {
+    color_eyre::install()?;
     println!("navicon");
 
     let config = Config::builder()
@@ -26,21 +27,21 @@ fn main() -> Result<()> {
     library.update_root(&conn)?;
 
     let artist_id = {
-        let artist_ids = library.find_artist("OCOTRONI");
+        let artist_ids = library.find_artist("matsushita");
         assert_eq!(artist_ids.len(), 1);
         artist_ids[0].to_string()
     };
     library.update_artist(&conn, &artist_id)?;
 
     let album_id = {
-        let album_ids = library.find_album("um uns zu beschweren");
+        let album_ids = library.find_album("first light");
         assert_eq!(album_ids.len(), 1);
         album_ids[0].to_string()
     };
     library.update_album(&conn, &album_id)?;
 
     let song_id = {
-        let song_ids = library.find_song("Tennis");
+        let song_ids = library.find_song("really gone");
         assert_eq!(song_ids.len(), 1);
         song_ids[0].to_string()
     };
@@ -49,7 +50,7 @@ fn main() -> Result<()> {
     }
 
     let find_id = {
-        let find_ids = library.find_entry("MÖCHte irgeND");
+        let find_ids = library.find_entry("all i have");
         assert_eq!(find_ids.len(), 1);
         find_ids[0].to_string()
     };

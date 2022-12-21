@@ -1,0 +1,19 @@
+[package]
+name = "navicon"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+color-eyre = "0.6"
+crossterm = "0.25.0"
+tui = { version = "0.19.0", default-features = false, features = [ "crossterm" ] }
+chrono = { version = "0.4", features = ["serde"] }
+config = "0.13"
+md-5 = "0.10"
+rand = "0.8"
+secrecy = "0.8"
+ureq = "2.5"
+serde = "1.0"
+serde-xml-rs = "0.6"

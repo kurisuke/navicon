@@ -3,14 +3,20 @@ mod library;
 mod subsonic;
 mod ui;
 
+use std::{thread, time::Duration};
+
 use color_eyre::Result;
 use config::Config;
 
-use crate::library::{Item, Library};
+use crate::{
+    library::{Item, Library},
+    ui::Ui,
+};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-    println!("navicon");
+
+    let mut ui = Ui::new()?;
 
     let config = Config::builder()
         .add_source(config::File::with_name("settings"))
@@ -20,8 +26,9 @@ fn main() -> Result<()> {
     let user: String = config.get("user")?;
     let password: String = config.get("password")?;
 
-    let conn = conn::Connection::new(url, user, password);
-    println!("ping: {}", conn.ping()?);
+    let conn = conn::Connection::new(url.clone(), user, password);
+    ui.add_log(&format!("ping: {}", conn.ping()?))?;
+    ui.set_status(&format!("connected to: {}", url))?;
 
     let mut library = Library::new();
     library.update_root(&conn)?;
@@ -46,7 +53,7 @@ fn main() -> Result<()> {
         song_ids[0].to_string()
     };
     if let Some(Item::Song(song)) = library.get_item(&song_id) {
-        println!("{}", song);
+        ui.add_log(&format!("{}", song))?;
     }
 
     let find_id = {
@@ -55,8 +62,10 @@ fn main() -> Result<()> {
         find_ids[0].to_string()
     };
     if let Some(Item::Song(song)) = library.get_item(&find_id) {
-        println!("{}", song);
+        ui.add_log(&format!("{}", song))?;
     }
+
+    thread::sleep(Duration::from_secs(5));
 
     Ok(())
 }

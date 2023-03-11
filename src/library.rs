@@ -41,6 +41,14 @@ impl Library {
         Ok(())
     }
 
+    pub fn get_children(&self, parent: Option<LibraryEntryKey>) -> Vec<&LibraryEntryKey> {
+        self.entries
+            .iter()
+            .filter(|(_, e)| parent == e.parent)
+            .map(|(k, _)| k)
+            .collect()
+    }
+
     pub fn find_artist(&self, contains: &str) -> Vec<&LibraryEntryKey> {
         let contains: SearchString = contains.into();
         self.entries
@@ -182,6 +190,16 @@ pub enum Item {
     Artist(Artist),
     Album(Album),
     Song(Song),
+}
+
+impl std::fmt::Display for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Item::Artist(artist) => write!(f, "{}", artist.name),
+            Item::Album(album) => write!(f, "{}", album.name),
+            Item::Song(song) => write!(f, "{}", song),
+        }
+    }
 }
 
 pub struct Artist {

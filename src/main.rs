@@ -32,6 +32,7 @@ fn main() -> Result<()> {
 
     let mut library = Library::new();
     library.update_root(&conn)?;
+    ui.set_library_view(&library, None)?;
 
     let artist_id = {
         let artist_ids = library.find_artist("matsushita");

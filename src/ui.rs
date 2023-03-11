@@ -10,9 +10,11 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::{Span, Text},
-    widgets::{Block, Borders, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame, Terminal,
 };
+
+use crate::library::{Library, LibraryEntryKey};
 
 pub struct Ui {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
@@ -30,6 +32,7 @@ impl Ui {
         let app_state = AppState {
             status: String::new(),
             log: String::new(),
+            library_view: vec![],
         };
 
         terminal.draw(|f| ui(f, &app_state))?;
@@ -56,6 +59,30 @@ impl Ui {
 
         Ok(())
     }
+
+    pub(crate) fn set_library_view(
+        &mut self,
+        library: &Library,
+        parent: Option<LibraryEntryKey>,
+    ) -> Result<()> {
+        let entries = library.get_children(parent);
+        self.app_state.library_view = entries
+            .into_iter()
+            .filter_map(|e| {
+                library.get_item(&e).map(|item| UiLibraryItem {
+                    id: e.clone(),
+                    text: format!("{}", item),
+                })
+            })
+            .collect();
+        self.app_state
+            .library_view
+            .sort_by(|a, b| a.text.cmp(&b.text));
+
+        self.terminal.draw(|f| ui(f, &self.app_state))?;
+
+        Ok(())
+    }
 }
 
 impl Drop for Ui {
@@ -74,6 +101,12 @@ impl Drop for Ui {
 struct AppState {
     status: String,
     log: String,
+    library_view: Vec<UiLibraryItem>,
+}
+
+struct UiLibraryItem {
+    id: String,
+    text: String,
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, app_state: &AppState) {
@@ -82,7 +115,14 @@ fn ui<B: Backend>(f: &mut Frame<B>, app_state: &AppState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
-        .constraints([Constraint::Percentage(10), Constraint::Percentage(90)].as_ref())
+        .constraints(
+            [
+                Constraint::Percentage(10),
+                Constraint::Percentage(70),
+                Constraint::Percentage(20),
+            ]
+            .as_ref(),
+        )
         .split(size);
 
     let create_block = |title| {
@@ -95,8 +135,16 @@ fn ui<B: Backend>(f: &mut Frame<B>, app_state: &AppState) {
     let status = Paragraph::new(Span::raw(&app_state.status)).block(create_block("navicon"));
     f.render_widget(status, chunks[0]);
 
+    let items: Vec<_> = app_state
+        .library_view
+        .iter()
+        .map(|item| ListItem::new(item.text.as_str()))
+        .collect();
+    let library_view = List::new(items).block(create_block("Library"));
+    f.render_widget(library_view, chunks[1]);
+
     let log = Paragraph::new(Text::raw(&app_state.log))
         .block(create_block("Log"))
         .wrap(Wrap { trim: true });
-    f.render_widget(log, chunks[1]);
+    f.render_widget(log, chunks[2]);
 }

@@ -1,6 +1,6 @@
 use color_eyre::Result;
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -82,6 +82,18 @@ impl Ui {
         self.terminal.draw(|f| ui(f, &self.app_state))?;
 
         Ok(())
+    }
+
+    pub(crate) fn wait_exit(&mut self) -> Result<()> {
+        loop {
+            if let Event::Key(key) = event::read()? {
+                if let KeyCode::Char('q') = key.code {
+                    return Ok(());
+                }
+            }
+
+            self.terminal.draw(|f| ui(f, &self.app_state))?;
+        }
     }
 }
 

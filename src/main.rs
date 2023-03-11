@@ -66,7 +66,7 @@ fn main() -> Result<()> {
         ui.add_log(&format!("{}", song))?;
     }
 
-    thread::sleep(Duration::from_secs(5));
+    ui.wait_exit()?;
 
     Ok(())
 }

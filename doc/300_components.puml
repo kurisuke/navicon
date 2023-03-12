@@ -1,0 +1,34 @@
+@startuml 300 Components
+!include <C4/C4_Component.puml>
+
+Person(user, "Navicon User", "A user with a music library", person)
+
+Component(uiView, "UI View", "mod ui::view", "Draw UI to terminal")
+Component(uiEvent, "UI Event Processor", "mod ui::event", "Handles UI related events")
+ComponentDb(uiModel, "UI Model", "mod ui::model", "Represents the UI state")
+
+ComponentQueue(libraryQueue, "Library Request Queue", "mod library::queue")
+ComponentQueue(uiQueue, "UI Event Queue", "mod ui::queue")
+
+Component(library, "Library", "mod library", "Represents Navidrome music library")
+ComponentDb(libraryCache, "Library Cache", "mod library::cache", "Cache data requested from Navidrome server")
+
+Component(apiClient, "Subsonic API Connection", "mod conn", "Handle Subsonic API requests")
+
+System_Ext(navidrome, "Navidrome", "Music streaming server")
+
+Rel(user, uiView, "observes")
+Rel(user, uiEvent, "input event (keyboard / mouse)")
+Rel(uiEvent, uiModel, "update")
+Rel(uiEvent, uiView, "trigger redraw")
+Rel(uiView, uiModel, "process")
+Rel(uiModel, uiQueue, "consume event")
+
+Rel(uiEvent, libraryQueue, "add request")
+Rel(library, libraryQueue, "consume request")
+Rel(library, uiQueue, "add information response event")
+Rel(library, apiClient, "request library information")
+Rel(library, libraryCache, "store / retrieve")
+Rel(apiClient, navidrome, "request", "https")
+
+@enduml

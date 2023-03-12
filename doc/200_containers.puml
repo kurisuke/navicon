@@ -1,0 +1,12 @@
+@startuml 200 Container
+!include <C4/C4_Container>
+
+Person(user, "Navicon User", "A user with a music library", person)
+Container(navicon, "Navicon", "Rust application", "TUI-based client for interaction with Navidrome server")
+Container_Ext(navidrome, "Navidrome", "Golang application", "Music streaming server")
+
+Rel(user, navicon, "Search collection, control audio playback", "TUI")
+Rel(user, navicon, "Listen to music", "Audio output")
+Rel(navicon, navidrome, "Get collection information, stream media data", "Subsonic API / https")
+
+@enduml

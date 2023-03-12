@@ -1,0 +1,11 @@
+@startuml 100 System Context
+!include <C4/C4_Context>
+
+Person(user, "Navicon User", "A user with a music library", person)
+System(navicon, "Navicon", "TUI-based client for interaction with Navidrome server")
+System_Ext(navidrome, "Navidrome", "Music streaming server")
+
+Rel(user, navicon, "Search collection, listen to music using")
+Rel(navicon, navidrome, "Get collection information, playback music")
+
+@enduml

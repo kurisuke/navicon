@@ -4,11 +4,11 @@
 Person(user, "Navicon User", "A user with a music library", person)
 
 Component(uiView, "UI View", "mod ui::view", "Draw UI to terminal")
-Component(uiEvent, "UI Event Processor", "mod ui::event", "Handles UI related events")
+Component(uiEvent, "UI Event Processor", "mod ui", "Handles UI related events")
 ComponentDb(uiModel, "UI Model", "mod ui::model", "Represents the UI state")
 
-ComponentQueue(libraryQueue, "Library Request Queue", "mod library::queue")
-ComponentQueue(uiQueue, "UI Event Queue", "mod ui::queue")
+ComponentQueue(libraryQueue, "Library Request Queue", "mod library::request")
+ComponentQueue(uiQueue, "UI Event Queue", "mod ui::event")
 
 Component(library, "Library", "mod library", "Represents Navidrome music library")
 ComponentDb(libraryCache, "Library Cache", "mod library::cache", "Cache data requested from Navidrome server")

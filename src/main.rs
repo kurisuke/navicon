@@ -7,7 +7,7 @@ use color_eyre::Result;
 use config::Config;
 
 use crate::{
-    library::{Item, Library},
+    library::{Library, LibraryItem},
     ui::Ui,
 };
 
@@ -51,7 +51,7 @@ fn main() -> Result<()> {
         assert_eq!(song_ids.len(), 1);
         song_ids[0].to_string()
     };
-    if let Some(Item::Song(song)) = library.get_item(&song_id) {
+    if let Some(LibraryItem::Song(song)) = library.get_item(&song_id) {
         ui.add_log(&format!("{}", song))?;
     }
 
@@ -60,7 +60,7 @@ fn main() -> Result<()> {
         assert_eq!(find_ids.len(), 1);
         find_ids[0].to_string()
     };
-    if let Some(Item::Song(song)) = library.get_item(&find_id) {
+    if let Some(LibraryItem::Song(song)) = library.get_item(&find_id) {
         ui.add_log(&format!("{}", song))?;
     }
 

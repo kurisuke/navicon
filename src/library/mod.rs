@@ -1,4 +1,5 @@
 mod cache;
+mod request;
 
 use color_eyre::Result;
 
@@ -57,7 +58,7 @@ impl Library {
         self.cache.find_entry(contains)
     }
 
-    pub fn get_item(&self, id: &LibraryEntryKey) -> Option<&Item> {
+    pub fn get_item(&self, id: &LibraryEntryKey) -> Option<&LibraryItem> {
         self.cache.get_item(id)
     }
 }
@@ -65,23 +66,23 @@ impl Library {
 pub type LibraryEntryKey = String;
 
 struct LibraryEntry {
-    parent: Option<String>,
-    children: Vec<String>,
-    item: Item,
+    parent: Option<LibraryEntryKey>,
+    children: Vec<LibraryEntryKey>,
+    item: LibraryItem,
 }
 
-pub enum Item {
+pub enum LibraryItem {
     Artist(Artist),
     Album(Album),
     Song(Song),
 }
 
-impl std::fmt::Display for Item {
+impl std::fmt::Display for LibraryItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Item::Artist(artist) => write!(f, "{}", artist.name),
-            Item::Album(album) => write!(f, "{}", album.name),
-            Item::Song(song) => write!(f, "{}", song),
+            LibraryItem::Artist(artist) => write!(f, "{}", artist.name),
+            LibraryItem::Album(album) => write!(f, "{}", album.name),
+            LibraryItem::Song(song) => write!(f, "{}", song),
         }
     }
 }

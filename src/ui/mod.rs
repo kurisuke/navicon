@@ -1,6 +1,9 @@
+mod event;
+mod model;
+
 use color_eyre::Result;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -86,7 +89,7 @@ impl Ui {
 
     pub(crate) fn wait_exit(&mut self) -> Result<()> {
         loop {
-            if let Event::Key(key) = event::read()? {
+            if let Event::Key(key) = crossterm::event::read()? {
                 if let KeyCode::Char('q') = key.code {
                     return Ok(());
                 }

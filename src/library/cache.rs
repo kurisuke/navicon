@@ -4,7 +4,7 @@ use color_eyre::Result;
 
 use crate::subsonic::{SubsonicData, SubsonicResponse};
 
-use super::{Album, Artist, Item, LibraryEntry, LibraryEntryKey, SearchString, Song};
+use super::{Album, Artist, LibraryEntry, LibraryEntryKey, LibraryItem, SearchString, Song};
 
 pub struct LibraryCache {
     indexes: HashMap<String, HashSet<LibraryEntryKey>>,
@@ -30,7 +30,7 @@ impl LibraryCache {
                         LibraryEntry {
                             parent: None,
                             children: vec![],
-                            item: Item::Artist(Artist {
+                            item: LibraryItem::Artist(Artist {
                                 name: artist.name.as_str().into(),
                             }),
                         },
@@ -55,7 +55,7 @@ impl LibraryCache {
         self.entries
             .iter()
             .filter(|(_, e)| {
-                if let Item::Artist(artist) = &e.item {
+                if let LibraryItem::Artist(artist) = &e.item {
                     artist.name.contains(&contains)
                 } else {
                     false
@@ -77,7 +77,7 @@ impl LibraryCache {
                 self.entries.insert(
                     album.id.clone(),
                     LibraryEntry {
-                        item: Item::Album(Album {
+                        item: LibraryItem::Album(Album {
                             name: album.name.as_str().into(),
                         }),
                         parent: Some(artist_id.clone()),
@@ -91,7 +91,7 @@ impl LibraryCache {
                 LibraryEntry {
                     parent: None,
                     children: album_ids,
-                    item: Item::Artist(Artist {
+                    item: LibraryItem::Artist(Artist {
                         name: artist.name.as_str().into(),
                     }),
                 },
@@ -105,7 +105,7 @@ impl LibraryCache {
         self.entries
             .iter()
             .filter(|(_, e)| {
-                if let Item::Album(album) = &e.item {
+                if let LibraryItem::Album(album) = &e.item {
                     album.name.contains(&contains)
                 } else {
                     false
@@ -127,7 +127,7 @@ impl LibraryCache {
                 self.entries.insert(
                     song.id.clone(),
                     LibraryEntry {
-                        item: Item::Song(Song {
+                        item: LibraryItem::Song(Song {
                             title: song.title.as_str().into(),
                             track_number: song.track,
                             duration: song.duration,
@@ -143,7 +143,7 @@ impl LibraryCache {
                 LibraryEntry {
                     parent: None,
                     children: song_ids,
-                    item: Item::Album(Album {
+                    item: LibraryItem::Album(Album {
                         name: album.name.as_str().into(),
                     }),
                 },
@@ -157,7 +157,7 @@ impl LibraryCache {
         self.entries
             .iter()
             .filter(|(_, e)| {
-                if let Item::Song(song) = &e.item {
+                if let LibraryItem::Song(song) = &e.item {
                     song.title.contains(&contains)
                 } else {
                     false
@@ -172,15 +172,15 @@ impl LibraryCache {
         self.entries
             .iter()
             .filter(|(_, e)| match &e.item {
-                Item::Artist(artist) => artist.name.contains(&contains),
-                Item::Album(album) => album.name.contains(&contains),
-                Item::Song(song) => song.title.contains(&contains),
+                LibraryItem::Artist(artist) => artist.name.contains(&contains),
+                LibraryItem::Album(album) => album.name.contains(&contains),
+                LibraryItem::Song(song) => song.title.contains(&contains),
             })
             .map(|(k, _)| k)
             .collect()
     }
 
-    pub fn get_item(&self, id: &LibraryEntryKey) -> Option<&Item> {
+    pub fn get_item(&self, id: &LibraryEntryKey) -> Option<&LibraryItem> {
         self.entries.get(id).map(|e| &e.item)
     }
 }

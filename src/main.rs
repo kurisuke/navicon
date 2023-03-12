@@ -3,8 +3,6 @@ mod library;
 mod subsonic;
 mod ui;
 
-use std::{thread, time::Duration};
-
 use color_eyre::Result;
 use config::Config;
 
@@ -30,8 +28,8 @@ fn main() -> Result<()> {
     ui.add_log(&format!("ping: {}", conn.ping()?))?;
     ui.set_status(&format!("connected to: {}", url))?;
 
-    let mut library = Library::new();
-    library.update_root(&conn)?;
+    let mut library = Library::new(conn);
+    library.update_root()?;
     ui.set_library_view(&library, None)?;
 
     let artist_id = {
@@ -39,14 +37,14 @@ fn main() -> Result<()> {
         assert_eq!(artist_ids.len(), 1);
         artist_ids[0].to_string()
     };
-    library.update_artist(&conn, &artist_id)?;
+    library.update_artist(&artist_id)?;
 
     let album_id = {
         let album_ids = library.find_album("first light");
         assert_eq!(album_ids.len(), 1);
         album_ids[0].to_string()
     };
-    library.update_album(&conn, &album_id)?;
+    library.update_album(&album_id)?;
 
     let song_id = {
         let song_ids = library.find_song("really gone");

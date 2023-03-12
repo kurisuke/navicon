@@ -2,23 +2,24 @@ use std::collections::{HashMap, HashSet};
 
 use color_eyre::Result;
 
-use crate::{conn::Connection, subsonic::SubsonicData};
+use crate::subsonic::{SubsonicData, SubsonicResponse};
 
-pub struct Library {
+use super::{Album, Artist, Item, LibraryEntry, LibraryEntryKey, SearchString, Song};
+
+pub struct LibraryCache {
     indexes: HashMap<String, HashSet<LibraryEntryKey>>,
     entries: HashMap<String, LibraryEntry>,
 }
 
-impl Library {
-    pub fn new() -> Library {
-        Library {
+impl LibraryCache {
+    pub fn new() -> LibraryCache {
+        LibraryCache {
             indexes: HashMap::new(),
             entries: HashMap::new(),
         }
     }
 
-    pub fn update_root(&mut self, conn: &Connection) -> Result<()> {
-        let resp = conn.get_artists()?;
+    pub fn update_root(&mut self, resp: SubsonicResponse) -> Result<()> {
         if let Some(SubsonicData::Artists(artists)) = resp.data {
             for index in artists.index {
                 let mut index_artists = HashSet::new();
@@ -64,8 +65,11 @@ impl Library {
             .collect()
     }
 
-    pub fn update_artist(&mut self, conn: &Connection, artist_id: &LibraryEntryKey) -> Result<()> {
-        let resp = conn.get_artist(artist_id)?;
+    pub fn update_artist(
+        &mut self,
+        resp: SubsonicResponse,
+        artist_id: &LibraryEntryKey,
+    ) -> Result<()> {
         if let Some(SubsonicData::Artist(artist)) = resp.data {
             let mut album_ids = vec![];
             for album in artist.album {
@@ -111,8 +115,11 @@ impl Library {
             .collect()
     }
 
-    pub fn update_album(&mut self, conn: &Connection, album_id: &LibraryEntryKey) -> Result<()> {
-        let resp = conn.get_album(album_id)?;
+    pub fn update_album(
+        &mut self,
+        resp: SubsonicResponse,
+        album_id: &LibraryEntryKey,
+    ) -> Result<()> {
         if let Some(SubsonicData::Album(album)) = resp.data {
             let mut song_ids = vec![];
             for song in album.song {
@@ -175,82 +182,5 @@ impl Library {
 
     pub fn get_item(&self, id: &LibraryEntryKey) -> Option<&Item> {
         self.entries.get(id).map(|e| &e.item)
-    }
-}
-
-pub type LibraryEntryKey = String;
-
-struct LibraryEntry {
-    parent: Option<String>,
-    children: Vec<String>,
-    item: Item,
-}
-
-pub enum Item {
-    Artist(Artist),
-    Album(Album),
-    Song(Song),
-}
-
-impl std::fmt::Display for Item {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Item::Artist(artist) => write!(f, "{}", artist.name),
-            Item::Album(album) => write!(f, "{}", album.name),
-            Item::Song(song) => write!(f, "{}", song),
-        }
-    }
-}
-
-pub struct Artist {
-    pub name: SearchString,
-}
-
-pub struct Album {
-    pub name: SearchString,
-}
-
-pub struct Song {
-    pub title: SearchString,
-    pub track_number: Option<usize>,
-    pub duration: Option<usize>,
-}
-
-impl std::fmt::Display for Song {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}: {} [{}:{:02}]",
-            self.track_number.unwrap_or_default(),
-            self.title,
-            self.duration.unwrap_or_default() / 60,
-            self.duration.unwrap_or_default() % 60
-        )
-    }
-}
-
-pub struct SearchString {
-    display: String,
-    search: String,
-}
-
-impl SearchString {
-    fn contains(&self, other: &SearchString) -> bool {
-        self.search.contains(&other.search)
-    }
-}
-
-impl From<&str> for SearchString {
-    fn from(value: &str) -> Self {
-        SearchString {
-            display: value.to_string(),
-            search: value.to_lowercase(),
-        }
-    }
-}
-
-impl std::fmt::Display for SearchString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.display)
     }
 }

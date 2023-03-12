@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
+pub type Id = String;
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SubsonicResponse {
@@ -39,7 +41,7 @@ pub struct MusicFolders {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MusicFolder {
-    pub id: usize,
+    pub id: Id,
     pub name: Option<String>,
 }
 
@@ -62,7 +64,7 @@ pub struct Index {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Artist {
-    pub id: String,
+    pub id: Id,
     pub name: String,
     pub album_count: usize,
     #[serde(default)]
@@ -72,10 +74,10 @@ pub struct Artist {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Album {
-    pub id: String,
+    pub id: Id,
     pub name: String,
     pub artist: Option<String>,
-    pub artist_id: Option<String>,
+    pub artist_id: Option<Id>,
     pub song_count: usize,
     pub duration: usize,
     pub created: DateTime<Utc>,
@@ -89,8 +91,8 @@ pub struct Album {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Child {
-    pub id: String,
-    pub parent: Option<String>,
+    pub id: Id,
+    pub parent: Option<Id>,
     pub is_dir: bool,
     pub title: String,
     pub album: Option<String>,

@@ -1,186 +1,187 @@
 use std::collections::{HashMap, HashSet};
 
-use color_eyre::Result;
+use crate::subsonic::{Id, SubsonicData, SubsonicResponse};
 
-use crate::subsonic::{SubsonicData, SubsonicResponse};
-
-use super::{Album, Artist, LibraryEntry, LibraryEntryKey, LibraryItem, SearchString, Song};
+use super::{Album, Artist, LibraryItem, LibraryItemKey, Song};
 
 pub struct LibraryCache {
-    indexes: HashMap<String, HashSet<LibraryEntryKey>>,
-    entries: HashMap<String, LibraryEntry>,
+    indexes: HashMap<String, HashSet<LibraryItemKey>>,
+    artists: HashMap<Id, CacheEntry<Artist>>,
+    albums: HashMap<Id, CacheEntry<Album>>,
+    songs: HashMap<Id, CacheEntry<Song>>,
 }
 
 impl LibraryCache {
     pub fn new() -> LibraryCache {
         LibraryCache {
             indexes: HashMap::new(),
-            entries: HashMap::new(),
+            artists: HashMap::new(),
+            albums: HashMap::new(),
+            songs: HashMap::new(),
         }
     }
 
-    pub fn update_root(&mut self, resp: SubsonicResponse) -> Result<()> {
+    pub fn update_root(&mut self, resp: SubsonicResponse) {
         if let Some(SubsonicData::Artists(artists)) = resp.data {
             for index in artists.index {
                 let mut index_artists = HashSet::new();
                 for artist in index.artist {
-                    index_artists.insert(artist.id.clone());
-                    self.entries.insert(
+                    index_artists.insert(LibraryItemKey::Artist(artist.id.clone()));
+                    self.artists.insert(
                         artist.id,
-                        LibraryEntry {
+                        CacheEntry {
                             parent: None,
                             children: vec![],
-                            item: LibraryItem::Artist(Artist {
+                            item: Artist {
                                 name: artist.name.as_str().into(),
-                            }),
+                            },
                         },
                     );
                 }
                 self.indexes.insert(index.name, index_artists);
             }
         }
-        Ok(())
     }
 
-    pub fn get_children(&self, parent: Option<LibraryEntryKey>) -> Vec<&LibraryEntryKey> {
-        self.entries
-            .iter()
-            .filter(|(_, e)| parent == e.parent)
-            .map(|(k, _)| k)
-            .collect()
-    }
-
-    pub fn find_artist(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        let contains: SearchString = contains.into();
-        self.entries
-            .iter()
-            .filter(|(_, e)| {
-                if let LibraryItem::Artist(artist) = &e.item {
-                    artist.name.contains(&contains)
-                } else {
-                    false
-                }
-            })
-            .map(|(k, _)| k)
-            .collect()
-    }
-
-    pub fn update_artist(
-        &mut self,
-        resp: SubsonicResponse,
-        artist_id: &LibraryEntryKey,
-    ) -> Result<()> {
+    pub fn update_artist(&mut self, resp: SubsonicResponse, artist_id: &Id) {
         if let Some(SubsonicData::Artist(artist)) = resp.data {
             let mut album_ids = vec![];
             for album in artist.album {
                 album_ids.push(album.id.clone());
-                self.entries.insert(
-                    album.id.clone(),
-                    LibraryEntry {
-                        item: LibraryItem::Album(Album {
+                self.albums.insert(
+                    album.id,
+                    CacheEntry {
+                        item: Album {
                             name: album.name.as_str().into(),
-                        }),
+                        },
                         parent: Some(artist_id.clone()),
                         children: vec![],
                     },
                 );
             }
 
-            self.entries.insert(
+            self.artists.insert(
                 artist.id,
-                LibraryEntry {
+                CacheEntry {
                     parent: None,
                     children: album_ids,
-                    item: LibraryItem::Artist(Artist {
+                    item: Artist {
                         name: artist.name.as_str().into(),
-                    }),
+                    },
                 },
             );
         }
-        Ok(())
     }
 
-    pub fn find_album(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        let contains: SearchString = contains.into();
-        self.entries
-            .iter()
-            .filter(|(_, e)| {
-                if let LibraryItem::Album(album) = &e.item {
-                    album.name.contains(&contains)
-                } else {
-                    false
-                }
-            })
-            .map(|(k, _)| k)
-            .collect()
-    }
-
-    pub fn update_album(
-        &mut self,
-        resp: SubsonicResponse,
-        album_id: &LibraryEntryKey,
-    ) -> Result<()> {
+    pub fn update_album(&mut self, resp: SubsonicResponse, album_id: &Id) {
         if let Some(SubsonicData::Album(album)) = resp.data {
             let mut song_ids = vec![];
             for song in album.song {
                 song_ids.push(song.id.clone());
-                self.entries.insert(
-                    song.id.clone(),
-                    LibraryEntry {
-                        item: LibraryItem::Song(Song {
+                self.songs.insert(
+                    song.id,
+                    CacheEntry {
+                        item: Song {
                             title: song.title.as_str().into(),
                             track_number: song.track,
                             duration: song.duration,
-                        }),
+                        },
                         parent: Some(album_id.clone()),
                         children: vec![],
                     },
                 );
             }
 
-            self.entries.insert(
+            self.albums.insert(
                 album.id,
-                LibraryEntry {
+                CacheEntry {
                     parent: None,
                     children: song_ids,
-                    item: LibraryItem::Album(Album {
+                    item: Album {
                         name: album.name.as_str().into(),
-                    }),
+                    },
                 },
             );
         }
-        Ok(())
     }
 
-    pub fn find_song(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        let contains: SearchString = contains.into();
-        self.entries
-            .iter()
-            .filter(|(_, e)| {
-                if let LibraryItem::Song(song) = &e.item {
-                    song.title.contains(&contains)
+    pub(crate) fn get_children(
+        &self,
+        key: &LibraryItemKey,
+    ) -> Option<Vec<(LibraryItemKey, LibraryItem)>> {
+        match key {
+            LibraryItemKey::Root => {
+                if self.artists.is_empty() {
+                    None
                 } else {
-                    false
+                    Some(
+                        self.artists
+                            .iter()
+                            .map(|(k, v)| {
+                                (
+                                    LibraryItemKey::Artist(k.clone()),
+                                    LibraryItem::Artist(v.item.clone()),
+                                )
+                            })
+                            .collect(),
+                    )
                 }
-            })
-            .map(|(k, _)| k)
-            .collect()
+            }
+            LibraryItemKey::Artist(artist_id) => {
+                if let Some(artist_entry) = self.artists.get(artist_id) {
+                    if artist_entry.children.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            artist_entry
+                                .children
+                                .iter()
+                                .filter_map(|album_id| {
+                                    self.albums.get(album_id).map(|album_entry| {
+                                        (
+                                            LibraryItemKey::Album(album_id.clone()),
+                                            LibraryItem::Album(album_entry.item.clone()),
+                                        )
+                                    })
+                                })
+                                .collect(),
+                        )
+                    }
+                } else {
+                    None
+                }
+            }
+            LibraryItemKey::Album(album_id) => {
+                if let Some(album_entry) = self.artists.get(album_id) {
+                    if album_entry.children.is_empty() {
+                        None
+                    } else {
+                        Some(
+                            album_entry
+                                .children
+                                .iter()
+                                .filter_map(|song_id| {
+                                    self.songs.get(song_id).map(|song_entry| {
+                                        (
+                                            LibraryItemKey::Song(song_id.clone()),
+                                            LibraryItem::Song(song_entry.item.clone()),
+                                        )
+                                    })
+                                })
+                                .collect(),
+                        )
+                    }
+                } else {
+                    None
+                }
+            }
+            LibraryItemKey::Song(_) => None,
+        }
     }
+}
 
-    pub fn find_entry(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        let contains: SearchString = contains.into();
-        self.entries
-            .iter()
-            .filter(|(_, e)| match &e.item {
-                LibraryItem::Artist(artist) => artist.name.contains(&contains),
-                LibraryItem::Album(album) => album.name.contains(&contains),
-                LibraryItem::Song(song) => song.title.contains(&contains),
-            })
-            .map(|(k, _)| k)
-            .collect()
-    }
-
-    pub fn get_item(&self, id: &LibraryEntryKey) -> Option<&LibraryItem> {
-        self.entries.get(id).map(|e| &e.item)
-    }
+struct CacheEntry<T> {
+    parent: Option<Id>,
+    children: Vec<Id>,
+    item: T,
 }

@@ -1,4 +1,4 @@
-use crate::library::{LibraryEntryKey, LibraryItem};
+use crate::library::{LibraryItem, LibraryItemKey};
 
 struct Model {
     context: Context,
@@ -26,7 +26,7 @@ enum Context {
 struct LibraryContext {
     this: Option<LibraryItem>,
     children: Resolvable<Vec<LibraryItem>>,
-    parent: Option<LibraryEntryKey>,
+    parent: Option<LibraryItemKey>,
 }
 
 struct SearchContext {

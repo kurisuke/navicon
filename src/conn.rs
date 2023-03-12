@@ -1,4 +1,4 @@
-use crate::subsonic::{self, SubsonicData, SubsonicResponse};
+use crate::subsonic::{self, Id, SubsonicData, SubsonicResponse};
 
 use color_eyre::Result;
 use md5::Digest;
@@ -44,12 +44,12 @@ impl Connection {
         req.call()
     }
 
-    pub fn get_artist(&self, id: &str) -> Result<SubsonicResponse> {
+    pub fn get_artist(&self, id: &Id) -> Result<SubsonicResponse> {
         let req = ApiRequest::build(self, "getArtist").param("id", id);
         req.call()
     }
 
-    pub fn get_album(&self, id: &str) -> Result<SubsonicResponse> {
+    pub fn get_album(&self, id: &Id) -> Result<SubsonicResponse> {
         let req = ApiRequest::build(self, "getAlbum").param("id", id);
         req.call()
     }

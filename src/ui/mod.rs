@@ -17,7 +17,7 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::library::{Library, LibraryEntryKey};
+use crate::library::{Library, LibraryItemKey};
 
 pub struct Ui {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
@@ -65,17 +65,15 @@ impl Ui {
 
     pub(crate) fn set_library_view(
         &mut self,
-        library: &Library,
-        parent: Option<LibraryEntryKey>,
+        library: &mut Library,
+        parent: &LibraryItemKey,
     ) -> Result<()> {
-        let entries = library.get_children(parent);
-        self.app_state.library_view = entries
+        let items = library.get_children(parent)?;
+        self.app_state.library_view = items
             .into_iter()
-            .filter_map(|e| {
-                library.get_item(&e).map(|item| UiLibraryItem {
-                    id: e.clone(),
-                    text: format!("{}", item),
-                })
+            .map(|(id, item)| UiLibraryItem {
+                id,
+                text: item.to_string(),
             })
             .collect();
         self.app_state
@@ -120,7 +118,7 @@ struct AppState {
 }
 
 struct UiLibraryItem {
-    id: String,
+    id: LibraryItemKey,
     text: String,
 }
 

@@ -1,7 +1,7 @@
-use super::LibraryEntryKey;
+use super::LibraryItemKey;
 
 pub enum LibraryRequest {
-    GetChildren(Option<LibraryEntryKey>),
+    GetChildren(Option<LibraryItemKey>),
     FindEntries(usize, FindType, String),
 }
 

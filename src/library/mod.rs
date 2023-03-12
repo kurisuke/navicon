@@ -1,11 +1,11 @@
 mod cache;
 mod request;
 
-use color_eyre::Result;
-
-use crate::conn::Connection;
+use crate::{conn::Connection, subsonic::Id};
 
 use self::cache::LibraryCache;
+
+use color_eyre::{eyre::bail, Result};
 
 pub struct Library {
     conn: Connection,
@@ -20,55 +20,43 @@ impl Library {
         }
     }
 
-    pub fn update_root(&mut self) -> Result<()> {
-        let resp = self.conn.get_artists()?;
-        self.cache.update_root(resp)?;
-        Ok(())
-    }
-
-    pub fn get_children(&self, parent: Option<LibraryEntryKey>) -> Vec<&LibraryEntryKey> {
-        self.cache.get_children(parent)
-    }
-
-    pub fn find_artist(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        self.cache.find_artist(contains)
-    }
-
-    pub fn update_artist(&mut self, artist_id: &LibraryEntryKey) -> Result<()> {
-        let resp = self.conn.get_artist(artist_id)?;
-        self.cache.update_artist(resp, artist_id)?;
-        Ok(())
-    }
-
-    pub fn find_album(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        self.cache.find_album(contains)
-    }
-
-    pub fn update_album(&mut self, album_id: &LibraryEntryKey) -> Result<()> {
-        let resp = self.conn.get_album(album_id)?;
-        self.cache.update_album(resp, album_id)?;
-        Ok(())
-    }
-
-    pub fn find_song(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        self.cache.find_song(contains)
-    }
-
-    pub fn find_entry(&self, contains: &str) -> Vec<&LibraryEntryKey> {
-        self.cache.find_entry(contains)
-    }
-
-    pub fn get_item(&self, id: &LibraryEntryKey) -> Option<&LibraryItem> {
-        self.cache.get_item(id)
+    pub fn get_children(
+        &mut self,
+        key: &LibraryItemKey,
+    ) -> Result<Vec<(LibraryItemKey, LibraryItem)>> {
+        if let Some(children) = self.cache.get_children(key) {
+            Ok(children)
+        } else {
+            match key {
+                LibraryItemKey::Root => {
+                    let resp = self.conn.get_artists()?;
+                    self.cache.update_root(resp);
+                }
+                LibraryItemKey::Artist(artist_id) => {
+                    let resp = self.conn.get_artist(artist_id)?;
+                    self.cache.update_artist(resp, artist_id);
+                }
+                LibraryItemKey::Album(album_id) => {
+                    let resp = self.conn.get_album(album_id)?;
+                    self.cache.update_album(resp, album_id);
+                }
+                LibraryItemKey::Song(_) => {}
+            }
+            if let Some(children) = self.cache.get_children(key) {
+                Ok(children)
+            } else {
+                bail!("empty children")
+            }
+        }
     }
 }
 
-pub type LibraryEntryKey = String;
-
-struct LibraryEntry {
-    parent: Option<LibraryEntryKey>,
-    children: Vec<LibraryEntryKey>,
-    item: LibraryItem,
+#[derive(PartialEq, Eq, Hash, Clone)]
+pub enum LibraryItemKey {
+    Root,
+    Artist(Id),
+    Album(Id),
+    Song(Id),
 }
 
 pub enum LibraryItem {
@@ -87,14 +75,17 @@ impl std::fmt::Display for LibraryItem {
     }
 }
 
+#[derive(Clone)]
 pub struct Artist {
     pub name: SearchString,
 }
 
+#[derive(Clone)]
 pub struct Album {
     pub name: SearchString,
 }
 
+#[derive(Clone)]
 pub struct Song {
     pub title: SearchString,
     pub track_number: Option<usize>,
@@ -114,6 +105,7 @@ impl std::fmt::Display for Song {
     }
 }
 
+#[derive(Clone)]
 pub struct SearchString {
     display: String,
     search: String,

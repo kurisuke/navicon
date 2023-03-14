@@ -1,8 +1,9 @@
 use super::LibraryItemKey;
 
 pub enum LibraryRequest {
-    GetChildren(Option<LibraryItemKey>),
+    GetChildren(LibraryItemKey),
     FindEntries(usize, FindType, String),
+    Shutdown,
 }
 
 pub enum FindType {

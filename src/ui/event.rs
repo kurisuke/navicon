@@ -1,8 +1,10 @@
 use crate::library::{LibraryItem, LibraryItemKey};
 
-type LibraryRequestResult = Result<Vec<LibraryItem>, String>;
+pub type LibraryRequestResult = Vec<(LibraryItemKey, LibraryItem)>;
 
 pub enum UiEvent {
-    LibraryGetChildrenComplete(Option<LibraryItemKey>, LibraryRequestResult),
+    AddLog(String),
+    SetStatus(String),
+    LibraryGetChildrenComplete(LibraryItemKey, LibraryRequestResult),
     LibraryFindEntriesComplete(usize, LibraryRequestResult),
 }

@@ -1,29 +1,51 @@
 mod cache;
-mod request;
+pub mod request;
 
-use crate::{conn::Connection, subsonic::Id};
+use std::sync::mpsc::{Receiver, Sender};
 
-use self::cache::LibraryCache;
+use crate::{conn::Connection, subsonic::Id, ui::event::UiEvent};
+
+use self::{cache::LibraryCache, request::LibraryRequest};
 
 use color_eyre::{eyre::bail, Result};
 
 pub struct Library {
     conn: Connection,
     cache: LibraryCache,
+    rx_request: Receiver<LibraryRequest>,
+    tx_ui_event: Sender<UiEvent>,
 }
 
 impl Library {
-    pub fn new(conn: Connection) -> Library {
+    pub fn new(
+        conn: Connection,
+        rx_request: Receiver<LibraryRequest>,
+        tx_ui_event: Sender<UiEvent>,
+    ) -> Library {
         Library {
             conn,
             cache: LibraryCache::new(),
+            rx_request,
+            tx_ui_event,
         }
     }
 
-    pub fn get_children(
-        &mut self,
-        key: &LibraryItemKey,
-    ) -> Result<Vec<(LibraryItemKey, LibraryItem)>> {
+    pub fn run(&mut self) -> Result<()> {
+        loop {
+            match self.rx_request.recv()? {
+                LibraryRequest::GetChildren(key) => {
+                    let children = self.get_children(&key)?;
+                    self.tx_ui_event
+                        .send(UiEvent::LibraryGetChildrenComplete(key, children))?;
+                }
+                LibraryRequest::FindEntries(_, _, _) => todo!(),
+                LibraryRequest::Shutdown => break,
+            }
+        }
+        Ok(())
+    }
+
+    fn get_children(&mut self, key: &LibraryItemKey) -> Result<Vec<(LibraryItemKey, LibraryItem)>> {
         if let Some(children) = self.cache.get_children(key) {
             Ok(children)
         } else {

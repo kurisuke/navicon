@@ -1,4 +1,4 @@
-mod event;
+pub mod event;
 mod model;
 
 use color_eyre::Result;
@@ -7,7 +7,12 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::io;
+use std::{
+    io,
+    sync::mpsc::{Receiver, Sender},
+    thread,
+    time::Duration,
+};
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -17,15 +22,25 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::library::{Library, LibraryItemKey};
+use crate::library::{request::LibraryRequest, LibraryItemKey};
+
+use self::event::{LibraryRequestResult, UiEvent};
+
+const TICK: Duration = Duration::from_millis(200);
 
 pub struct Ui {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
     app_state: AppState,
+    tx_library_request: Sender<LibraryRequest>,
+    rx_ui_event: Receiver<UiEvent>,
+    dirty: bool,
 }
 
 impl Ui {
-    pub(crate) fn new() -> Result<Ui> {
+    pub fn new(
+        tx_library_request: Sender<LibraryRequest>,
+        rx_ui_event: Receiver<UiEvent>,
+    ) -> Result<Ui> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -43,32 +58,22 @@ impl Ui {
         Ok(Ui {
             terminal,
             app_state,
+            tx_library_request,
+            rx_ui_event,
+            dirty: false,
         })
     }
 
-    pub(crate) fn add_log(&mut self, msg: &str) -> Result<()> {
+    fn add_log(&mut self, msg: &str) {
         self.app_state.log.push_str(msg);
         self.app_state.log.push('\n');
-
-        self.terminal.draw(|f| ui(f, &self.app_state))?;
-
-        Ok(())
     }
 
-    pub(crate) fn set_status(&mut self, status: &str) -> Result<()> {
+    fn set_status(&mut self, status: &str) {
         self.app_state.status = String::from(status);
-
-        self.terminal.draw(|f| ui(f, &self.app_state))?;
-
-        Ok(())
     }
 
-    pub(crate) fn set_library_view(
-        &mut self,
-        library: &mut Library,
-        parent: &LibraryItemKey,
-    ) -> Result<()> {
-        let items = library.get_children(parent)?;
+    fn set_library_view(&mut self, items: LibraryRequestResult) {
         self.app_state.library_view = items
             .into_iter()
             .map(|(id, item)| UiLibraryItem {
@@ -79,21 +84,45 @@ impl Ui {
         self.app_state
             .library_view
             .sort_by(|a, b| a.text.cmp(&b.text));
-
-        self.terminal.draw(|f| ui(f, &self.app_state))?;
-
-        Ok(())
     }
 
-    pub(crate) fn wait_exit(&mut self) -> Result<()> {
+    pub fn run(&mut self) -> Result<()> {
+        self.tx_library_request
+            .send(LibraryRequest::GetChildren(LibraryItemKey::Root))?;
+
         loop {
-            if let Event::Key(key) = crossterm::event::read()? {
-                if let KeyCode::Char('q') = key.code {
-                    return Ok(());
+            // user input events
+            while crossterm::event::poll(Duration::from_secs(0))? {
+                if let Event::Key(key) = crossterm::event::read()? {
+                    if let KeyCode::Char('q') = key.code {
+                        self.tx_library_request.send(LibraryRequest::Shutdown)?;
+                        return Ok(());
+                    }
                 }
             }
 
-            self.terminal.draw(|f| ui(f, &self.app_state))?;
+            while let Ok(ui_event) = self.rx_ui_event.try_recv() {
+                match ui_event {
+                    UiEvent::LibraryGetChildrenComplete(_view_id, children_result) => {
+                        self.set_library_view(children_result);
+                    }
+                    UiEvent::LibraryFindEntriesComplete(_, _) => todo!(),
+                    UiEvent::AddLog(s) => {
+                        self.add_log(&s);
+                    }
+                    UiEvent::SetStatus(s) => {
+                        self.set_status(&s);
+                    }
+                }
+                self.dirty = true;
+            }
+
+            if self.dirty {
+                self.terminal.draw(|f| ui(f, &self.app_state))?;
+                self.dirty = false;
+            }
+
+            thread::sleep(TICK);
         }
     }
 }

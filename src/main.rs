@@ -3,19 +3,25 @@ mod library;
 mod subsonic;
 mod ui;
 
+use std::{sync::mpsc::channel, thread};
+
 use color_eyre::Result;
 use config::Config;
-use library::LibraryItemKey;
 
-use crate::{
-    library::{Library, LibraryItem},
-    ui::Ui,
-};
+use ui::event::UiEvent;
+
+use crate::{library::Library, ui::Ui};
 
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let mut ui = Ui::new()?;
+    let (tx_library_request, rx_library_request) = channel();
+    let (tx_ui_event, rx_ui_event) = channel();
+
+    let ui_handler = thread::spawn(|| {
+        let mut ui = Ui::new(tx_library_request, rx_ui_event).unwrap();
+        ui.run().unwrap();
+    });
 
     let config = Config::builder()
         .add_source(config::File::with_name("settings"))
@@ -26,13 +32,16 @@ fn main() -> Result<()> {
     let password: String = config.get("password")?;
 
     let conn = conn::Connection::new(url.clone(), user, password);
-    ui.add_log(&format!("ping: {}", conn.ping()?))?;
-    ui.set_status(&format!("connected to: {}", url))?;
+    tx_ui_event.send(UiEvent::AddLog(format!("ping: {}", conn.ping()?)))?;
+    tx_ui_event.send(UiEvent::SetStatus(format!("connected to: {}", url)))?;
 
-    let mut library = Library::new(conn);
-    ui.set_library_view(&mut library, &LibraryItemKey::Root)?;
+    let library_handler = thread::spawn(|| {
+        let mut library = Library::new(conn, rx_library_request, tx_ui_event);
+        library.run().unwrap();
+    });
 
-    ui.wait_exit()?;
+    library_handler.join().unwrap();
+    ui_handler.join().unwrap();
 
     Ok(())
 }

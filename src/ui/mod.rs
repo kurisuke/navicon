@@ -33,7 +33,7 @@ pub struct Ui {
     app_state: AppState,
     tx_library_request: Sender<LibraryRequest>,
     rx_ui_event: Receiver<UiEvent>,
-    dirty: bool,
+    redraw: bool,
 }
 
 impl Ui {
@@ -60,7 +60,7 @@ impl Ui {
             app_state,
             tx_library_request,
             rx_ui_event,
-            dirty: false,
+            redraw: false,
         })
     }
 
@@ -93,11 +93,20 @@ impl Ui {
         loop {
             // user input events
             while crossterm::event::poll(Duration::from_secs(0))? {
-                if let Event::Key(key) = crossterm::event::read()? {
-                    if let KeyCode::Char('q') = key.code {
-                        self.tx_library_request.send(LibraryRequest::Shutdown)?;
-                        return Ok(());
+                match crossterm::event::read()? {
+                    Event::Key(key) => {
+                        // keyboard input
+                        if let KeyCode::Char('q') = key.code {
+                            // shutdown
+                            self.tx_library_request.send(LibraryRequest::Shutdown)?;
+                            return Ok(());
+                        }
                     }
+                    Event::Resize(_, _) => {
+                        // resized terminal, redraw
+                        self.redraw = true;
+                    }
+                    _ => {}
                 }
             }
 
@@ -114,12 +123,12 @@ impl Ui {
                         self.set_status(&s);
                     }
                 }
-                self.dirty = true;
+                self.redraw = true;
             }
 
-            if self.dirty {
+            if self.redraw {
                 self.terminal.draw(|f| ui(f, &self.app_state))?;
-                self.dirty = false;
+                self.redraw = false;
             }
 
             thread::sleep(TICK);
